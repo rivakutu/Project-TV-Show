@@ -1,57 +1,74 @@
-function setup() {
+window.onload = initializeEpisodesPage;
+
+function initializeEpisodesPage() {
   const allEpisodes = getAllEpisodes();
-  makePageForEpisodes(allEpisodes);
+  renderUI(allEpisodes);
 }
-// formatting episode and season codes for each episode
+
+function renderUI(episodeList) {
+  clearRoot();
+  renderAllEpisodes(episodeList);
+  const footer = createAttributionFooter();
+  document.getElementById("root").appendChild(footer);
+}
+
+function clearRoot() {
+  document.getElementById("root").innerHTML = "";
+}
+
+function renderAllEpisodes(episodeList) {
+  const rootElem = document.getElementById("root");
+  episodeList.forEach((episode) => {
+    const card = buildEpisodeCard(episode);
+    rootElem.appendChild(card);
+  });
+}
+
+function buildEpisodeCard(episode) {
+  const card = document.createElement("div");
+  card.className = "episode-card";
+
+  const title = createEpisodeTitle(episode);
+  const image = createEpisodeImage(episode);
+  const summary = createEpisodeSummary(episode);
+
+  card.appendChild(title);
+  card.appendChild(image);
+  card.appendChild(summary);
+
+  return card;
+}
+
+function createEpisodeTitle(episode) {
+  const episodeCode = formatEpisodeCode(episode.season, episode.number);
+  const title = document.createElement("h3");
+  title.textContent = `${episode.name} - ${episodeCode}`;
+  return title;
+}
+
+function createEpisodeImage(episode) {
+  const image = document.createElement("img");
+  image.src = episode.image.medium;
+  image.alt = `Image from episode: ${episode.name}`;
+  return image;
+}
+
+function createEpisodeSummary(episode) {
+  const summary = document.createElement("div");
+  summary.className = "episode-summary";
+  summary.innerHTML = episode.summary;
+  return summary;
+}
+
+function createAttributionFooter() {
+  const footer = document.createElement("footer");
+  footer.innerHTML =
+    '<p>Data provided by <a href="https://www.tvmaze.com/" target="_blank">TVMaze.com</a></p>';
+  return footer;
+}
+
 function formatEpisodeCode(season, episode) {
   const seasonStr = season.toString().padStart(2, "0");
   const episodeStr = episode.toString().padStart(2, "0");
   return `S${seasonStr}E${episodeStr}`;
 }
-// function to create HTML element for each episode
-function createEpisodeElement(episode) {
-  const episodeDiv = document.createElement("div");
-  episodeDiv.className = "episode-card";
-
-  const episodeCode = formatEpisodeCode(episode.season, episode.number);
-
-  //creating title element
-  const title = document.createElement("h3");
-  title.textContent = `${episodeCode} - ${episode.name}`;
-
-  //creating image element
-  const image = document.createElement("img");
-  image.src = episode.image.medium;
-  image.alt = episode.name;
-
-  //creating summary element
-  const summary = document.createElement("div");
-  summary.className = "episode-summary";
-  summary.innerHTML = episode.summary;
-
-  // we need to append all elements to the episodeDiv
-  episodeDiv.appendChild(title);
-  episodeDiv.appendChild(image);
-  episodeDiv.appendChild(summary);
-
-  return episodeDiv;
-}
-function makePageForEpisodes(episodeList) {
-  const rootElem = document.getElementById("root");
-  // clearing existing content
-  rootElem.innerHTML = "";
-
-  //we need to loop through all episodes and create an HTML element for each episode
-  episodeList.forEach((episode) => {
-    const episodeElement = createEpisodeElement(episode);
-    rootElem.appendChild(episodeElement);
-  });
-
-  //referencing TVMaze
-  const tribute = document.createElement("footer");
-  tribute.innerHTML =
-    '<p>Data came from <a href="https://www.tvmaze.com/">TVMaze</a></p>';
-  rootElem.appendChild(tribute);
-}
-
-window.onload = setup;
