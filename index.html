@@ -9,6 +9,19 @@
   </head>
 
   <body>
+    <div id="controls">
+      <input
+        type="text"
+        id="search-input"
+        placeholder="Search episodes..."
+        aria-label="Search for episodes by name or summary"
+      />
+      <select id="episode-select" aria-label="Select an episode to view">
+        <option value="all">All Episodes</option>
+      </select>
+      <p id="search-count"></p>
+    </div>
+
     <div id="root"></div>
 
     <!-- Loads a provided function called getAllEpisodes() which returns all episodes -->
