@@ -1,8 +1,12 @@
 window.onload = initializeEpisodesPage;
 
+let allEpisodes = [];
+
 function initializeEpisodesPage() {
-  const allEpisodes = getAllEpisodes();
+  allEpisodes = getAllEpisodes();
   renderUI(allEpisodes);
+  setupSearchInput();
+  setupEpisodeSelector();
 }
 
 function renderUI(episodeList) {
@@ -10,6 +14,7 @@ function renderUI(episodeList) {
   renderAllEpisodes(episodeList);
   const footer = createAttributionFooter();
   document.getElementById("root").appendChild(footer);
+  updateSearchCount(episodeList.length, allEpisodes.length);
 }
 
 function clearRoot() {
@@ -71,4 +76,49 @@ function formatEpisodeCode(season, episode) {
   const seasonStr = season.toString().padStart(2, "0");
   const episodeStr = episode.toString().padStart(2, "0");
   return `S${seasonStr}E${episodeStr}`;
+}
+
+// ----------------- LEVEL 200 FEATURES ------------------
+
+function setupSearchInput() {
+  const input = document.getElementById("search-input");
+  input.addEventListener("input", (e) => {
+    const searchTerm = e.target.value.toLowerCase();
+    const filtered = allEpisodes.filter((ep) => {
+      return (
+        ep.name.toLowerCase().includes(searchTerm) ||
+        ep.summary.toLowerCase().includes(searchTerm)
+      );
+    });
+
+    renderUI(filtered);
+  });
+}
+
+function setupEpisodeSelector() {
+  const selector = document.getElementById("episode-select");
+  selector.innerHTML = `<option value="all">All Episodes</option>`;
+
+  allEpisodes.forEach((ep) => {
+    const option = document.createElement("option");
+    option.value = ep.id;
+    const episodeCode = formatEpisodeCode(ep.season, ep.number);
+    option.textContent = `${episodeCode} - ${ep.name}`;
+    selector.appendChild(option);
+  });
+
+  selector.addEventListener("change", (e) => {
+    const selectedId = e.target.value;
+    if (selectedId === "all") {
+      renderUI(allEpisodes);
+    } else {
+      const selectedEp = allEpisodes.find((ep) => ep.id == selectedId);
+      renderUI([selectedEp]);
+    }
+  });
+}
+
+function updateSearchCount(currentCount, totalCount) {
+  const countElem = document.getElementById("search-count");
+  countElem.textContent = `Showing ${currentCount} of ${totalCount} episode(s)`;
 }
