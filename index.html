@@ -9,25 +9,26 @@
   </head>
 
   <body>
-    <div id="controls">
-      <input
-        type="text"
-        id="search-input"
-        placeholder="Search episodes..."
-        aria-label="Search for episodes by name or summary"
-      />
-      <select id="episode-select" aria-label="Select an episode to view">
-        <option value="all">All Episodes</option>
+    <header>
+      <input type="text" id="search-input" placeholder="Search episodes..." />
+      <span id="search-count"></span>
+      <select id="episode-selector">
+        <option value="all">All episodes</option>
       </select>
-      <p id="search-count"></p>
-    </div>
+    </header>
 
-    <div id="root"></div>
+    <main id="root"></main>
 
-    <!-- Loads a provided function called getAllEpisodes() which returns all episodes -->
+    <template id="episode-card">
+      <section class="episode-card">
+        <h3 class="episode-title"></h3>
+        <img class="episode-image" alt="Episode image" />
+        <div class="episode-summary"></div>
+        <time class="airdate"></time>
+      </section>
+    </template>
+
     <script src="episodes.js"></script>
-
-    <!-- Loads YOUR javascript code -->
     <script src="script.js" defer></script>
   </body>
 </html>
