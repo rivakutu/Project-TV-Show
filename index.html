@@ -9,20 +9,26 @@
   </head>
 
   <body>
-    <div id="root"></div>
+    <header>
+      <input type="text" id="search-input" placeholder="Search episodes..." />
+      <span id="search-count"></span>
+      <select id="episode-selector">
+        <option value="all">All episodes</option>
+      </select>
+    </header>
 
-    <!-- Loads a provided function called getAllEpisodes() which returns all episodes -->
-    <script src="episodes.js"></script>
+    <main id="root"></main>
 
-    <!-- Loads YOUR javascript code -->
-    <script src="script.js" defer></script>
     <template id="episode-card">
-      <section class="card">
-        <h3 class="title"></h3>
-        <img class="image" alt="Image of the tv show" />
-        <p class="episode-summary"></p>
+      <section class="episode-card">
+        <h3 class="episode-title"></h3>
+        <img class="episode-image" alt="Episode image" />
+        <div class="episode-summary"></div>
         <time class="airdate"></time>
       </section>
     </template>
+
+    <script src="episodes.js"></script>
+    <script src="script.js" defer></script>
   </body>
 </html>
