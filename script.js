@@ -1,13 +1,44 @@
+
 window.onload = () => {
-  const episodes = getAllEpisodes();
-  initializeEpisodesPage(episodes);
+  const rootElem = document.getElementById("root");
+  rootElem.innerHTML = '<p id="loading-message">Loading episodes...</p>';
+  fetchEpisodes()
+    .then((episodes) => {
+      document.getElementById("loading-message")?.remove();
+      initializeEpisodesPage(episodes);
+    })
+    .catch((err) => {
+      document.getElementById("loading-message")?.remove();
+      showError("Failed to load episodes. Please try again later.");
+    });
 };
+
+let cachedEpisodes = null;
+function fetchEpisodes() {
+  if (cachedEpisodes) return Promise.resolve(cachedEpisodes);
+  return fetch("https://api.tvmaze.com/shows/82/episodes")
+    .then((response) => {
+      if (!response.ok) throw new Error("Network response was not ok");
+      return response.json();
+    })
+    .then((data) => {
+      cachedEpisodes = data;
+      return data;
+    });
+}
+
+function showError(message) {
+  const rootElem = document.getElementById("root");
+  rootElem.innerHTML = `<p style="color:red;">${message}</p>`;
+}
 
 function initializeEpisodesPage(episodes) {
   renderEpisodeUI(episodes);
   setupSearch(episodes);
   setupDropdown(episodes);
   setupShowAllEpisodesButton(episodes);
+}
+
 // Adds a button to show all episodes, hidden by default
 function setupShowAllEpisodesButton(episodes) {
   let showAllBtn = document.getElementById("show-all-episodes-btn");
@@ -31,7 +62,6 @@ function setupShowAllEpisodesButton(episodes) {
     const dropdown = document.getElementById("episode-selector");
     if (dropdown) dropdown.value = "";
   };
-}
 }
 
 function renderEpisodeUI(episodes) {
