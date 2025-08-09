@@ -10,22 +10,21 @@ header {
   margin-bottom: 2rem;
 }
 
-#search-input {
+#show-selector,
+#search-input,
+#episode-selector {
   padding: 0.5rem;
   font-size: 1rem;
-  width: 250px;
+}
+
+#show-selector {
+  margin-right: 1rem;
 }
 
 #search-count {
   margin-left: 1rem;
   font-size: 0.9rem;
-  color: #222; /* changed from #666 to darker */
-}
-
-#episode-selector {
-  margin-left: 1rem;
-  padding: 0.5rem;
-  font-size: 1rem;
+  color: #222;
 }
 
 #root {
