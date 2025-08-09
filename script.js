@@ -7,6 +7,31 @@ function initializeEpisodesPage(episodes) {
   renderEpisodeUI(episodes);
   setupSearch(episodes);
   setupDropdown(episodes);
+  setupShowAllEpisodesButton(episodes);
+// Adds a button to show all episodes, hidden by default
+function setupShowAllEpisodesButton(episodes) {
+  let showAllBtn = document.getElementById("show-all-episodes-btn");
+  if (!showAllBtn) {
+    showAllBtn = document.createElement("button");
+    showAllBtn.id = "show-all-episodes-btn";
+    showAllBtn.textContent = "Show All Episodes";
+    showAllBtn.style.display = "none";
+    showAllBtn.style.margin = "10px";
+    // Place after the dropdown
+    const dropdown = document.getElementById("episode-selector");
+    if (dropdown && dropdown.parentNode) {
+      dropdown.parentNode.insertBefore(showAllBtn, dropdown.nextSibling);
+    } else {
+      document.body.appendChild(showAllBtn);
+    }
+  }
+  showAllBtn.onclick = () => {
+    renderEpisodeUI(episodes);
+    showAllBtn.style.display = "none";
+    const dropdown = document.getElementById("episode-selector");
+    if (dropdown) dropdown.value = "";
+  };
+}
 }
 
 function renderEpisodeUI(episodes) {
@@ -78,6 +103,15 @@ function setupDropdown(episodes) {
   const dropdown = document.getElementById("episode-selector");
   const rootElem = document.getElementById("root");
 
+  // Clear previous options if any
+  dropdown.innerHTML = "";
+
+  // Add "Jump to..." option at the top
+  const defaultOption = document.createElement("option");
+  defaultOption.value = "";
+  defaultOption.textContent = "Jump to episode...";
+  dropdown.appendChild(defaultOption);
+
   episodes.forEach((episode, index) => {
     const option = document.createElement("option");
     const episodeCode = formatEpisodeCode(episode.season, episode.number);
@@ -88,11 +122,12 @@ function setupDropdown(episodes) {
 
   dropdown.addEventListener("change", (event) => {
     const selectedIndex = event.target.value;
-
-    if (selectedIndex === "all") {
-      renderEpisodeUI(episodes);
-    } else {
-      renderEpisodeUI([episodes[selectedIndex]]);
+    const showAllBtn = document.getElementById("show-all-episodes-btn");
+    if (selectedIndex === "") {
+      if (showAllBtn) showAllBtn.style.display = "none";
+      return;
     }
+    renderEpisodeUI([episodes[selectedIndex]]);
+    if (showAllBtn) showAllBtn.style.display = "inline-block";
   });
 }
