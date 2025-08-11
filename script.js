@@ -1,15 +1,12 @@
-// script.js - Level 400
-// Assumes index.html contains:
-//  - <input id="search-input">, <span id="search-count">, <select id="episode-selector">
-//  - <main id="root"></main>
-//  - <template id="episode-card"> ... </template>
 
-// -----------------------------
 // Caching (never fetch same URL more than once per visit)
 let cachedShows = null; // array of show objects
 const cachedEpisodesByShowId = {}; // map showId -> episodes array
 
-// -----------------------------
+// App state
+let currentView = 'shows'; // 'shows' or 'episodes'
+let currentShow = null; // currently selected show for episodes view
+
 // Boot
 window.onload = () => {
   const root = document.getElementById("root");
@@ -17,11 +14,9 @@ window.onload = () => {
 
   fetchShows()
     .then((shows) => {
-      // loaded shows; create show selector UI
+      // loaded shows; show the shows listing page
       document.getElementById("loading-message")?.remove();
-      createShowSelector(shows);
-      // Optionally: select first show automatically, or wait for user selection.
-      // We'll wait for user selection to avoid extra fetches.
+      showShowsListing(shows);
     })
     .catch((err) => {
       console.error(err);
@@ -30,7 +25,6 @@ window.onload = () => {
     });
 };
 
-// -----------------------------
 // Fetch helpers
 function fetchShows() {
   if (cachedShows) return Promise.resolve(cachedShows);
@@ -69,84 +63,315 @@ function fetchEpisodesForShow(showId) {
     });
 }
 
-// -----------------------------
-// UI: show selector creation
-function createShowSelector(shows) {
-  // create a top area above root for show selection if not already present
-  let showSelector = document.getElementById("show-selector");
-  if (!showSelector) {
-    // put show selector before header elements if header exists, else at top of body
-    const header = document.querySelector("header");
-    const container = document.createElement("div");
-    container.className = "show-selector-container";
-    container.style.textAlign = "center";
-    container.style.marginBottom = "1rem";
+// Shows listing page
+function showShowsListing(shows) {
+  currentView = 'shows';
+  currentShow = null;
+  
+  // Hide episode controls and show search controls for shows
+  setupShowsSearchUI();
+  
+  // Render shows listing
+  renderShowsListing(shows);
+  
+  // Setup show search functionality
+  setupShowSearch(shows);
+}
 
-    const label = document.createElement("label");
-    label.htmlFor = "show-selector";
-    label.style.marginRight = "0.5rem";
-    label.textContent = "Choose show:";
-
-    showSelector = document.createElement("select");
-    showSelector.id = "show-selector";
-
-    container.appendChild(label);
-    container.appendChild(showSelector);
-
-    if (header && header.parentNode) {
-      header.parentNode.insertBefore(container, header);
-    } else {
-      document.body.insertBefore(container, document.body.firstChild);
-    }
-  }
-
-  // Populate options: default + shows from cachedShows (already sorted)
-  showSelector.innerHTML = ""; // clear
-  const defaultOpt = document.createElement("option");
-  defaultOpt.value = "";
-  defaultOpt.textContent = "Select a show...";
-  showSelector.appendChild(defaultOpt);
-
+function renderShowsListing(shows) {
+  const rootElem = document.getElementById("root");
+  rootElem.innerHTML = "";
+  
+  // Remove episodes-view class if it exists
+  rootElem.className = "";
+  
+  // Add title outside of the grid container by inserting before root
+  let existingTitle = document.querySelector(".shows-title");
+  if (existingTitle) existingTitle.remove();
+  
+  const titleDiv = document.createElement("div");
+  titleDiv.className = "shows-title";
+  titleDiv.innerHTML = '<h1 style="text-align: center; color: #333; margin: 2rem 0;">TV Shows</h1>';
+  
+  // Insert title before the root element
+  rootElem.parentNode.insertBefore(titleDiv, rootElem);
+  
   shows.forEach((show) => {
-    const opt = document.createElement("option");
-    opt.value = show.id; // value is show id for fetching episodes
-    opt.textContent = show.name;
-    showSelector.appendChild(opt);
+    const showCard = buildShowCard(show);
+    rootElem.appendChild(showCard);
   });
+  
+  // Remove existing footer (if any)
+  const oldFooter = document.querySelector("footer");
+  if (oldFooter) {
+    oldFooter.remove();
+  }
+  
+  // Add footer
+  const footer = document.createElement("footer");
+  footer.innerHTML =
+    '<p>Data came from <a href="https://www.tvmaze.com/" target="_blank">TVMaze</a></p>';
+  document.body.appendChild(footer);
+}
 
-  // Listen for selection
-  showSelector.addEventListener("change", (e) => {
-    const showId = e.target.value;
-    // reset UI placeholders
-    clearRootAndControls();
-    if (!showId) {
-      // no show selected; nothing to display
+function buildShowCard(show) {
+  const card = document.createElement("div");
+  card.className = "show-card";
+  card.style.cursor = "pointer";
+  card.addEventListener("click", (e) => {
+    // Don't trigger show selection if clicking on read more/less button
+    if (e.target.classList.contains("read-more-btn")) {
       return;
     }
-
-    // Show loading while fetching episodes for this show
-    const root = document.getElementById("root");
-    const loading = document.createElement("p");
-    loading.id = "loading-episodes";
-    loading.textContent = "Loading episodes for selected show...";
-    root.appendChild(loading);
-
-    fetchEpisodesForShow(showId)
-      .then((episodes) => {
-        document.getElementById("loading-episodes")?.remove();
-        // Initialize the page for these episodes (render UI + search + dropdown + show all)
-        initializeEpisodesPage(episodes);
-      })
-      .catch((err) => {
-        console.error(err);
-        document.getElementById("loading-episodes")?.remove();
-        showError("Failed to load episodes for this show. Please try again later.");
+    selectShow(show);
+  });
+  
+  const title = document.createElement("h3");
+  title.className = "show-title";
+  title.textContent = show.name;
+  title.style.color = "#007acc";
+  
+  const image = document.createElement("img");
+  image.className = "show-image";
+  image.src = show.image?.medium || "";
+  image.alt = `Image from show: ${show.name}`;
+  
+  const details = document.createElement("div");
+  details.className = "show-details";
+  
+  const genres = document.createElement("p");
+  genres.innerHTML = `<strong>Genres:</strong> ${(show.genres || []).join(", ") || "N/A"}`;
+  
+  const status = document.createElement("p");
+  status.innerHTML = `<strong>Status:</strong> ${show.status || "N/A"}`;
+  
+  const rating = document.createElement("p");
+  rating.innerHTML = `<strong>Rating:</strong> ${show.rating?.average || "N/A"}`;
+  
+  const runtime = document.createElement("p");
+  runtime.innerHTML = `<strong>Runtime:</strong> ${show.runtime ? show.runtime + " minutes" : "N/A"}`;
+  
+  const summary = document.createElement("div");
+  summary.className = "show-summary";
+  
+  if (show.summary) {
+    const cleanSummary = show.summary.replace(/<[^>]*>/g, ''); // Remove HTML tags
+    const shortSummary = cleanSummary.length > 200 ? cleanSummary.substring(0, 200) + "..." : cleanSummary;
+    const fullSummary = cleanSummary;
+    
+    const summaryText = document.createElement("p");
+    summaryText.innerHTML = `<strong>Summary:</strong> ${shortSummary}`;
+    
+    if (cleanSummary.length > 200) {
+      const readMoreBtn = document.createElement("button");
+      readMoreBtn.textContent = "Read More";
+      readMoreBtn.className = "read-more-btn";
+      readMoreBtn.style.marginLeft = "5px";
+      readMoreBtn.style.color = "#007acc";
+      readMoreBtn.style.background = "none";
+      readMoreBtn.style.border = "1px solid #007acc";
+      readMoreBtn.style.cursor = "pointer";
+      readMoreBtn.style.padding = "2px 6px";
+      readMoreBtn.style.fontSize = "12px";
+      
+      readMoreBtn.addEventListener("click", () => {
+        if (readMoreBtn.textContent === "Read More") {
+          summaryText.innerHTML = `<strong>Summary:</strong> ${fullSummary}`;
+          readMoreBtn.textContent = "Read Less";
+        } else {
+          summaryText.innerHTML = `<strong>Summary:</strong> ${shortSummary}`;
+          readMoreBtn.textContent = "Read More";
+        }
       });
+      
+      summaryText.appendChild(readMoreBtn);
+    }
+    
+    summary.appendChild(summaryText);
+  } else {
+    summary.innerHTML = '<p><strong>Summary:</strong> N/A</p>';
+  }
+  
+  details.appendChild(genres);
+  details.appendChild(status);
+  details.appendChild(rating);
+  details.appendChild(runtime);
+  details.appendChild(summary);
+  
+  card.appendChild(title);
+  card.appendChild(image);
+  card.appendChild(details);
+  
+  return card;
+}
+
+function selectShow(show) {
+  currentShow = show;
+  currentView = 'episodes';
+  
+  // Clear root and show loading
+  const root = document.getElementById("root");
+  root.innerHTML = '<p id="loading-episodes">Loading episodes...</p>';
+  
+  fetchEpisodesForShow(show.id)
+    .then((episodes) => {
+      document.getElementById("loading-episodes")?.remove();
+      showEpisodesListing(episodes);
+    })
+    .catch((err) => {
+      console.error(err);
+      document.getElementById("loading-episodes")?.remove();
+      showError("Failed to load episodes for this show. Please try again later.");
+    });
+}
+
+function showEpisodesListing(episodes) {
+  // Setup episode controls
+  setupEpisodesSearchUI();
+  
+  // Initialize the episodes page
+  initializeEpisodesPage(episodes);
+}
+
+// UI Setup for different views
+function setupShowsSearchUI() {
+  // Hide episode-specific controls
+  const episodeSelector = document.getElementById("episode-selector");
+  const showAllBtn = document.getElementById("show-all-episodes-btn");
+  
+  if (episodeSelector) episodeSelector.style.display = "none";
+  if (showAllBtn) showAllBtn.style.display = "none";
+  
+  // Show and setup search input for shows
+  const searchInput = document.getElementById("search-input");
+  const searchCount = document.getElementById("search-count");
+  
+  if (searchInput) {
+    searchInput.style.display = "inline-block";
+    searchInput.placeholder = "Search shows...";
+    searchInput.value = "";
+  }
+  if (searchCount) searchCount.textContent = "";
+}
+
+function setupEpisodesSearchUI() {
+  // Show episode controls
+  const episodeSelector = document.getElementById("episode-selector");
+  if (episodeSelector) episodeSelector.style.display = "inline-block";
+  
+  // Update search placeholder
+  const searchInput = document.getElementById("search-input");
+  if (searchInput) {
+    searchInput.placeholder = "Search episodes...";
+    searchInput.value = "";
+  }
+  
+  // Add back to shows navigation
+  addBackToShowsNavigation();
+}
+
+function addBackToShowsNavigation() {
+  // Remove existing nav if present
+  const existingNav = document.querySelector(".episodes-navigation");
+  if (existingNav) existingNav.remove();
+  
+  // Also remove any shows navigation that might still be there
+  const showsNav = document.querySelector(".shows-navigation");
+  if (showsNav) showsNav.remove();
+  
+  const nav = document.createElement("div");
+  nav.className = "episodes-navigation";
+  nav.style.marginBottom = "2rem";
+  nav.style.textAlign = "left";
+  nav.style.backgroundColor = "#fff";
+  nav.style.padding = "1rem";
+  nav.style.borderRadius = "6px";
+  nav.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.1)";
+  nav.style.width = "100%";
+  nav.style.boxSizing = "border-box";
+  
+  const backBtn = document.createElement("button");
+  backBtn.textContent = "← Back to Shows";
+  backBtn.style.marginRight = "1rem";
+  backBtn.style.padding = "10px 16px";
+  backBtn.style.backgroundColor = "#007acc";
+  backBtn.style.color = "white";
+  backBtn.style.border = "none";
+  backBtn.style.cursor = "pointer";
+  backBtn.style.borderRadius = "4px";
+  backBtn.style.fontSize = "14px";
+  backBtn.style.fontWeight = "bold";
+  
+  backBtn.addEventListener("click", () => {
+    fetchShows().then(shows => showShowsListing(shows));
+  });
+  
+  const title = document.createElement("span");
+  title.innerHTML = `<strong style="font-size: 1.2rem;">Episodes: ${currentShow ? currentShow.name : ''}</strong>`;
+  
+  nav.appendChild(backBtn);
+  nav.appendChild(title);
+  
+  // Insert at the beginning of the root
+  const root = document.getElementById("root");
+  root.insertBefore(nav, root.firstChild);
+}
+
+// Show search functionality
+function setupShowSearch(shows) {
+  const searchInput = document.getElementById("search-input");
+  const searchCount = document.getElementById("search-count");
+  
+  if (!searchInput) return;
+  if (searchCount) searchCount.textContent = `Displaying ${shows.length} / ${shows.length} shows`;
+  
+  // Remove previous handler by cloning node trick
+  const newSearch = searchInput.cloneNode(true);
+  searchInput.parentNode.replaceChild(newSearch, searchInput);
+  
+  newSearch.addEventListener("input", (event) => {
+    const query = event.target.value.toLowerCase();
+    
+    const filteredShows = shows.filter((show) => {
+      return (
+        (show.name || "").toLowerCase().includes(query) ||
+        (show.summary || "").toLowerCase().includes(query) ||
+        (show.genres || []).some(genre => genre.toLowerCase().includes(query))
+      );
+    });
+    
+    // Only re-render the shows, don't re-setup search
+    renderShowsListingFiltered(filteredShows, shows.length);
+    if (searchCount) searchCount.textContent = `Displaying ${filteredShows.length} / ${shows.length} shows`;
   });
 }
 
-// -----------------------------
-// clear previous UI controls / root but keep show selector
+// Separate function for rendering filtered results without re-setting up search
+function renderShowsListingFiltered(shows, totalCount) {
+  const rootElem = document.getElementById("root");
+  
+  // Clear only the show cards, keep the title
+  const existingCards = rootElem.querySelectorAll(".show-card");
+  existingCards.forEach(card => card.remove());
+  
+  shows.forEach((show) => {
+    const showCard = buildShowCard(show);
+    rootElem.appendChild(showCard);
+  });
+  
+  // Update footer
+  const oldFooter = document.querySelector("footer");
+  if (oldFooter) {
+    oldFooter.remove();
+  }
+  
+  const footer = document.createElement("footer");
+  footer.innerHTML =
+    '<p>Data came from <a href="https://www.tvmaze.com/" target="_blank">TVMaze</a></p>';
+  document.body.appendChild(footer);
+}
+
+// clear previous UI controls / root for episodes view
 function clearRootAndControls() {
   const root = document.getElementById("root");
   root.innerHTML = ""; // remove episode cards, any search UI created earlier
@@ -154,10 +379,19 @@ function clearRootAndControls() {
   const searchCount = document.getElementById("search-count");
   if (searchCount) searchCount.textContent = "";
   const epSelector = document.getElementById("episode-selector");
-  if (epSelector) epSelector.innerHTML = '<option value="all">All episodes</option>';
+  if (epSelector) epSelector.innerHTML = '<option value="">Jump to episode...</option>';
   // remove any footer to be re-added by renderEpisodeUI
   const oldFooter = document.querySelector("footer");
   if (oldFooter) oldFooter.remove();
+  // remove any navigation
+  const existingNav = document.querySelector(".episodes-navigation");
+  if (existingNav) existingNav.remove();
+  // remove any shows navigation that might still be there
+  const showsNav = document.querySelector(".shows-navigation");
+  if (showsNav) showsNav.remove();
+  // remove shows title
+  const showsTitle = document.querySelector(".shows-title");
+  if (showsTitle) showsTitle.remove();
 }
 
 // Show user-facing error message in root area
@@ -166,9 +400,12 @@ function showError(message) {
   rootElem.innerHTML = `<p style="color:red;">${message}</p>`;
 }
 
-// -----------------------------
 // initialize page for a given episodes array (render UI + controls)
 function initializeEpisodesPage(episodes) {
+  // Clear any existing content first
+  clearRootAndControls();
+  // Add navigation first
+  addBackToShowsNavigation();
   // render episodes and set up search & dropdown
   renderEpisodeUI(episodes);
   setupSearch(episodes);
@@ -179,7 +416,14 @@ function initializeEpisodesPage(episodes) {
 // Rendering episodes using template (template id = "episode-card")
 function renderEpisodeUI(episodes) {
   const rootElem = document.getElementById("root");
-  rootElem.innerHTML = "";
+  // Don't clear root here as navigation was already added
+  
+  // Add episodes-view class for different styling
+  rootElem.className = "episodes-view";
+  
+  // Remove only episode cards, keep navigation
+  const existingCards = rootElem.querySelectorAll(".episode-card");
+  existingCards.forEach(card => card.remove());
 
   episodes.forEach((episode) => {
     const episodeCard = buildEpisodeCardFromTemplate(episode);
